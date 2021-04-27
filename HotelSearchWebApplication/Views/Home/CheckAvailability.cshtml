@@ -1,0 +1,25 @@
+﻿@{
+    ViewData["Title"] = "CheckAvailability";
+}
+
+<br />
+<h2 class="mx-auto text-center">Welcome to the best hotels in the city</h2>
+<br />
+<hr />
+<div>
+    @foreach (ReturnHotelInformationViewModel hotel in (List<ReturnHotelInformationViewModel>)ViewBag.HotelViewModel)
+    {
+        var price = String.Format("{0} {1}", hotel.PriceForRoom, hotel.CurrencyForPayment);
+    <div class="mx-auto">
+        <td>Name of hotel: <b>@hotel.NameOfHotel</b></td>
+    </div>
+        <div class="mx-auto">
+            <td>Description of hotel: <b>@hotel.Description</b></td>
+        </div>
+        <hr />
+        <div class="mx-auto text-center">
+            <td>Ratings for this hotel: <b>@hotel.NumberOfRatings</b></td> ----> <td>Price: <b>@price</b></td>
+        </div>
+        <hr />
+    }
+</div>
