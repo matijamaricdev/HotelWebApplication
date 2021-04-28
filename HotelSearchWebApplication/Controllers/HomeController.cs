@@ -21,6 +21,7 @@ using System.IO;
 using System.Net.Http.Headers;
 using static HotelSearchWebApplication.Models.ViewModel.HotelViewModel;
 using System.Globalization;
+using HotelSearchWebApplication.Helper;
 
 namespace HotelSearchWebApplication.Controllers
 {
@@ -52,16 +53,21 @@ namespace HotelSearchWebApplication.Controllers
         {
             List<ReturnHotelInformationViewModel> returnHotelInfo = new List<ReturnHotelInformationViewModel>();
 
+            _logger.LogInformation($"{LogHelper.UserTriedToMakeRequest} - {City} - {CheckInDateRequest} - {CheckOutDateRequest} - {NumberOfPassengersForOneRoom}");
+
             try
             {
-                var apiKey = _config.GetValue<string>("ApiKey");
-                var apiSecret = _config.GetValue<string>("ApiSecret");
+                var apiKey = _config.GetValue<string>(StringHelper.ApiKey);
+                var apiSecret = _config.GetValue<string>(StringHelper.ApiSecret);
+
+                if (String.IsNullOrEmpty(apiKey) && String.IsNullOrEmpty(apiSecret))
+                    _logger.LogError(LogHelper.CredentialsAreEmpty);
 
                 Amadeus amadeus = Amadeus.Builder(apiKey, apiSecret).Build();
                 string token = await GetToken(apiKey, apiSecret, amadeus);
 
                 const string baseUrl = "https://test.api.amadeus.com/v1/";
-                const string dateFormat = "yyyy-MM-dd";
+                const string dateFormat = StringHelper.DateFormat;
                 string city = FilterCity(City);
 
                 using (var client = new HttpClient())
@@ -69,22 +75,33 @@ namespace HotelSearchWebApplication.Controllers
                     HttpResponseMessage response = await ConnectToAWebsite(token, baseUrl, city, client);
                     if (response.IsSuccessStatusCode)
                     {
+                        _logger.LogInformation(LogHelper.SuccessfullyConnected);
                         var readAllAsync = await response.Content.ReadAsStringAsync();
                         var hotelViewModel = JsonConvert.DeserializeObject<Root>(readAllAsync);
-                        MapAndSaveHotels(CheckInDateRequest, CheckOutDateRequest, NumberOfPassengersForOneRoom, returnHotelInfo, dateFormat, hotelViewModel);
+                        if (hotelViewModel != null)
+                        {
+                            _logger.LogInformation(LogHelper.SuccessfullyParsedJSON);
+                            MapAndSaveHotels(CheckInDateRequest, CheckOutDateRequest, NumberOfPassengersForOneRoom, returnHotelInfo, dateFormat, hotelViewModel);
+                        }
                     }
                 }
                 ViewBag.HotelViewModel = returnHotelInfo;
             }
             catch (Exception e)
             {
-                //Also log with logger
+                _logger.LogError($"{LogHelper.ErrorMessage} - {e.Message} - {e.StackTrace} - {e.InnerException}");
                 Console.WriteLine("ERROR: " + e.ToString());
             }
-            if(returnHotelInfo.Count == 0)
-                return RedirectToAction("CurrentlyThereAreNoHotels");
-            else
+            if(returnHotelInfo.Count != 0)
+            {
+                _logger.LogInformation(LogHelper.SuccessfullyShowedHotel);
                 return View(returnHotelInfo);
+            }
+            else
+            {
+                _logger.LogInformation($"{LogHelper.CurrentlyNoHotels} {City}");
+                return RedirectToAction("CurrentlyThereAreNoHotels");
+            }
         }
 
         public IActionResult CurrentlyThereAreNoHotels()
@@ -110,7 +127,7 @@ namespace HotelSearchWebApplication.Controllers
                             {
                                 NameOfHotel = data.hotel.name,
                                 NumberOfRatings = data.hotel.rating,
-                                Description = (data.hotel.description == null) ? "This hotel has no description" : data.hotel.description.text,
+                                Description = (data.hotel.description == null) ? LogHelper.HotelDoesNotHaveDescription : data.hotel.description.text,
                                 PriceForRoom = off.price.total,
                                 CurrencyForPayment = off.price.currency
                             };
@@ -160,6 +177,7 @@ namespace HotelSearchWebApplication.Controllers
         {
             if (city != null)
                 return city.Substring(0, 3).ToUpper();
+            _logger.LogWarning($"{LogHelper.WrongCityFiltering} : {city}");
             return String.Empty;
         }
 
@@ -183,6 +201,8 @@ namespace HotelSearchWebApplication.Controllers
             }
 
             string returnToken = s.Split(',')[5].Substring(30).TrimEnd('"');
+            if (!String.IsNullOrEmpty(returnToken))
+                _logger.LogInformation(LogHelper.TokenSuccessfullySent);
             return returnToken;
         }
 
