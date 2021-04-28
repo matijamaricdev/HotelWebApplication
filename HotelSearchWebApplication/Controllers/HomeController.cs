@@ -81,7 +81,15 @@ namespace HotelSearchWebApplication.Controllers
                 //Also log with logger
                 Console.WriteLine("ERROR: " + e.ToString());
             }
-            return View(returnHotelInfo);
+            if(returnHotelInfo.Count == 0)
+                return RedirectToAction("CurrentlyThereAreNoHotels");
+            else
+                return View(returnHotelInfo);
+        }
+
+        public IActionResult CurrentlyThereAreNoHotels()
+        {
+            return View();
         }
 
         private static void MapAndSaveHotels(DateTime CheckInDateRequest, DateTime CheckOutDateRequest, byte NumberOfPassengersForOneRoom, List<ReturnHotelInformationViewModel> returnHotelInfo, string dateFormat, Root hotelViewModel)
